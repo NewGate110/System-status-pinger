@@ -211,3 +211,38 @@ def test_format_message_shows_failed_services():
     msg = format_message(metrics)
     assert "nginx.service" in msg
     assert "🔴" in msg
+
+
+def test_send_telegram_success():
+    from unittest.mock import MagicMock
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    with patch("pinger.requests.post", return_value=mock_response):
+        from pinger import send_telegram
+        result = send_telegram("token", "chat_id", "hello", retries=3, wait=0)
+    assert result is True
+
+
+def test_send_telegram_fails_then_succeeds():
+    from unittest.mock import MagicMock
+    import requests as req
+    call_count = {"n": 0}
+    def side_effect(*args, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] < 3:
+            raise req.RequestException("timeout")
+        m = MagicMock()
+        m.raise_for_status = MagicMock()
+        return m
+    with patch("pinger.requests.post", side_effect=side_effect):
+        from pinger import send_telegram
+        result = send_telegram("token", "chat_id", "hello", retries=3, wait=0)
+    assert result is True
+
+
+def test_send_telegram_all_fail():
+    import requests as req
+    with patch("pinger.requests.post", side_effect=req.RequestException("timeout")):
+        from pinger import send_telegram
+        result = send_telegram("token", "chat_id", "hello", retries=3, wait=0)
+    assert result is False

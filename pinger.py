@@ -199,3 +199,17 @@ def format_message(metrics: dict) -> str:
     ]
 
     return "\n".join(lines)
+
+
+def send_telegram(token: str, chat_id: str, message: str, retries: int = 3, wait: int = 10) -> bool:
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            response.raise_for_status()
+            return True
+        except requests.RequestException:
+            if attempt < retries:
+                time.sleep(wait)
+    return False
