@@ -1,0 +1,9 @@
+[Unit]
+Description=Linux System Status Pinger
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/pinger/pinger.py
+EnvironmentFile=/opt/pinger/.env
+StandardOutput=append:/var/log/pinger.log
+StandardError=append:/var/log/pinger.log
