@@ -98,15 +98,21 @@ def collect_metrics() -> dict:
                 temperatures.append({"label": entry.label or key, "current": entry.current})
             break
 
-    result = subprocess.run(
-        ["systemctl", "list-units", "--state=failed", "--no-legend", "--plain"],
-        capture_output=True, text=True
-    )
-    failed_lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
-    failed_services = [l.split()[0] for l in failed_lines] if failed_lines else []
+    try:
+        result = subprocess.run(
+            ["/usr/bin/systemctl", "list-units", "--state=failed", "--no-legend", "--plain"],
+            capture_output=True, text=True
+        )
+        failed_lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
+        failed_services = [l.split()[0] for l in failed_lines] if failed_lines else []
+    except FileNotFoundError:
+        failed_services = []
 
-    last_result = subprocess.run(["last", "-n", "1", "-w"], capture_output=True, text=True)
-    last_login = last_result.stdout.strip().splitlines()[0] if last_result.stdout.strip() else "N/A"
+    try:
+        last_result = subprocess.run(["/usr/bin/last", "-n", "1", "-w"], capture_output=True, text=True)
+        last_login = last_result.stdout.strip().splitlines()[0] if last_result.stdout.strip() else "N/A"
+    except FileNotFoundError:
+        last_login = "N/A"
 
     return {
         "cpu_percent": cpu_percent,
