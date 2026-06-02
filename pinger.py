@@ -213,3 +213,25 @@ def send_telegram(token: str, chat_id: str, message: str, retries: int = 3, wait
             if attempt < retries:
                 time.sleep(wait)
     return False
+
+
+def main() -> None:
+    logger = setup_logging()
+    config = load_config()
+
+    if not check_connectivity():
+        logger.error("Connectivity check failed after 3 retries — aborting")
+        sys.exit(1)
+
+    metrics = collect_metrics()
+    message = format_message(metrics)
+
+    if not send_telegram(config["token"], config["chat_id"], message):
+        logger.error("Failed to send Telegram message after 3 retries")
+        sys.exit(1)
+
+    logger.info("Report sent successfully")
+
+
+if __name__ == "__main__":
+    main()
