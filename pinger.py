@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import shutil
 import socket
 import time
 import subprocess
@@ -21,7 +22,13 @@ def load_config() -> dict:
     if not chat_id:
         print("ERROR: TELEGRAM_CHAT_ID is not set.", file=sys.stderr)
         sys.exit(1)
-    return {"token": token, "chat_id": chat_id}
+    report_hours_raw = os.environ.get("REPORT_HOURS", "8,20")
+    try:
+        report_hours = [int(h.strip()) for h in report_hours_raw.split(",")]
+    except ValueError:
+        print("ERROR: REPORT_HOURS must be comma-separated integers e.g. 8,20", file=sys.stderr)
+        sys.exit(1)
+    return {"token": token, "chat_id": chat_id, "report_hours": report_hours}
 
 
 def setup_logging(log_path: str = "/var/log/pinger.log") -> logging.Logger:
@@ -108,10 +115,14 @@ def collect_metrics() -> dict:
     except FileNotFoundError:
         failed_services = []
 
-    try:
-        last_result = subprocess.run(["/usr/bin/last", "-n", "1", "-w"], capture_output=True, text=True)
-        last_login = last_result.stdout.strip().splitlines()[0] if last_result.stdout.strip() else "N/A"
-    except FileNotFoundError:
+    last_bin = shutil.which("last")
+    if last_bin:
+        try:
+            last_result = subprocess.run([last_bin, "-n", "1", "-w"], capture_output=True, text=True)
+            last_login = last_result.stdout.strip().splitlines()[0] if last_result.stdout.strip() else "N/A"
+        except OSError:
+            last_login = "N/A"
+    else:
         last_login = "N/A"
 
     return {
@@ -224,6 +235,11 @@ def send_telegram(token: str, chat_id: str, message: str, retries: int = 3, wait
 def main() -> None:
     logger = setup_logging()
     config = load_config()
+
+    current_hour = datetime.now().hour
+    if current_hour not in config["report_hours"]:
+        logger.info(f"Skipping — hour {current_hour} not in REPORT_HOURS {config['report_hours']}")
+        sys.exit(0)
 
     if not check_connectivity():
         logger.error("Connectivity check failed after 3 retries — aborting")
