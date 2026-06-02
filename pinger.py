@@ -127,3 +127,75 @@ def collect_metrics() -> dict:
         "last_login": last_login,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+
+def _fmt_bytes(n: int) -> str:
+    gb = n / 1024**3
+    return f"{gb:.1f} GB"
+
+
+def format_message(metrics: dict) -> str:
+    cpu = metrics["cpu_percent"]
+    cpu_emoji = get_emoji(cpu, warn=70, crit=90)
+    load_1, load_5, load_15 = metrics["load_avg"]
+    cores = metrics["cpu_count"]
+    load_emoji = get_emoji(load_1, warn=cores, crit=cores * 2)
+
+    ram = metrics["ram"]
+    ram_emoji = get_emoji(ram["percent"], warn=75, crit=90)
+
+    lines = [
+        f"🖥️ *System Status Report*",
+        f"🕐 {metrics['timestamp']} | ⏱️ Uptime: {metrics['uptime']}",
+        "",
+        f"*📊 CPU*",
+        f"Usage: {cpu_emoji} {cpu:.1f}% | Load avg: {load_emoji} {load_1:.2f} / {load_5:.2f} / {load_15:.2f}",
+        "",
+        f"*🧠 RAM*",
+        f"Used: {ram_emoji} {_fmt_bytes(ram['used'])} / {_fmt_bytes(ram['total'])} ({ram['percent']:.1f}%)",
+        "",
+        f"*💾 Disk*",
+    ]
+    for disk in metrics["disks"]:
+        disk_emoji = get_emoji(disk["percent"], warn=75, crit=90)
+        lines.append(
+            f"{disk['mount']} → {disk_emoji} {_fmt_bytes(disk['used'])} / {_fmt_bytes(disk['total'])} ({disk['percent']:.1f}%)"
+        )
+
+    lines += ["", "*🌐 Network*"]
+    if metrics["network"]:
+        for iface, counts in metrics["network"].items():
+            lines.append(f"{iface}: ↑ {_fmt_bytes(counts['sent'])} sent | ↓ {_fmt_bytes(counts['recv'])} recv")
+    else:
+        lines.append("No external interfaces detected")
+
+    top = metrics["top_processes"]
+    top_str = " | ".join(f"{p['name']} ({p.get('cpu_percent', 0):.1f}%)" for p in top) if top else "N/A"
+    lines += [
+        "",
+        f"*⚙️ Processes*",
+        f"Running: {metrics['process_count']} | Top CPU: {top_str}",
+    ]
+
+    if metrics["temperatures"]:
+        lines += ["", "*🌡️ Temperature*"]
+        for t in metrics["temperatures"]:
+            temp_emoji = get_emoji(t["current"], warn=70, crit=85)
+            lines.append(f"{t['label']}: {temp_emoji} {t['current']:.1f}°C")
+
+    failed = metrics["failed_services"]
+    if failed:
+        svc_str = ", ".join(failed)
+        lines += ["", f"*🔧 Systemd Services*", f"Failed: 🔴 {len(failed)} ({svc_str})"]
+    else:
+        lines += ["", f"*🔧 Systemd Services*", f"Failed: ✅ None"]
+
+    lines += [
+        "",
+        f"*👤 Last Login*",
+        metrics["last_login"],
+        "",
+        f"*🔌 Connectivity check: ✅ Online*",
+    ]
+
+    return "\n".join(lines)

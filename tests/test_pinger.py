@@ -139,3 +139,75 @@ def test_collect_metrics_structure():
     assert "temperatures" in metrics
     assert "failed_services" in metrics
     assert "last_login" in metrics
+
+
+def test_format_message_contains_sections():
+    from pinger import format_message
+    metrics = {
+        "timestamp": "2026-06-02 08:00:01",
+        "uptime": "14 days, 3:22:10",
+        "cpu_percent": 45.0,
+        "cpu_count": 4,
+        "load_avg": (1.2, 0.9, 0.8),
+        "ram": {"used": int(3.1 * 1024**3), "total": int(8 * 1024**3), "percent": 39.0},
+        "disks": [{"mount": "/", "used": int(42 * 1024**3), "total": int(120 * 1024**3), "percent": 35.0}],
+        "network": {"eth0": {"sent": int(1.2 * 1024**3), "recv": int(4.5 * 1024**3)}},
+        "process_count": 183,
+        "top_processes": [{"name": "nginx", "cpu_percent": 12.0}, {"name": "python", "cpu_percent": 8.0}],
+        "temperatures": [{"label": "CPU", "current": 48.0}],
+        "failed_services": [],
+        "last_login": "root pts/0 192.168.1.10 Mon Jun  2 07:45",
+    }
+    msg = format_message(metrics)
+    assert "*System Status Report*" in msg
+    assert "*📊 CPU*" in msg
+    assert "*🧠 RAM*" in msg
+    assert "*💾 Disk*" in msg
+    assert "*🌐 Network*" in msg
+    assert "*⚙️ Processes*" in msg
+    assert "*🌡️ Temperature*" in msg
+    assert "*🔧 Systemd Services*" in msg
+    assert "*👤 Last Login*" in msg
+
+
+def test_format_message_omits_temperature_section_when_empty():
+    from pinger import format_message
+    metrics = {
+        "timestamp": "2026-06-02 08:00:01",
+        "uptime": "1:00:00",
+        "cpu_percent": 10.0,
+        "cpu_count": 4,
+        "load_avg": (0.1, 0.1, 0.1),
+        "ram": {"used": 1024**3, "total": 8 * 1024**3, "percent": 12.5},
+        "disks": [{"mount": "/", "used": 1024**3, "total": 10 * 1024**3, "percent": 10.0}],
+        "network": {},
+        "process_count": 50,
+        "top_processes": [],
+        "temperatures": [],
+        "failed_services": [],
+        "last_login": "N/A",
+    }
+    msg = format_message(metrics)
+    assert "🌡️" not in msg
+
+
+def test_format_message_shows_failed_services():
+    from pinger import format_message
+    metrics = {
+        "timestamp": "2026-06-02 08:00:01",
+        "uptime": "1:00:00",
+        "cpu_percent": 10.0,
+        "cpu_count": 4,
+        "load_avg": (0.1, 0.1, 0.1),
+        "ram": {"used": 1024**3, "total": 8 * 1024**3, "percent": 12.5},
+        "disks": [{"mount": "/", "used": 1024**3, "total": 10 * 1024**3, "percent": 10.0}],
+        "network": {},
+        "process_count": 50,
+        "top_processes": [],
+        "temperatures": [],
+        "failed_services": ["nginx.service", "ssh.service"],
+        "last_login": "N/A",
+    }
+    msg = format_message(metrics)
+    assert "nginx.service" in msg
+    assert "🔴" in msg
