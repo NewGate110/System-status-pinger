@@ -3,7 +3,8 @@ Description=Linux System Status Pinger
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 %h/bots/System-status-pinger/pinger.py
-EnvironmentFile=%h/bots/System-status-pinger/.env
+User=aslaa
+ExecStart=/home/aslaa/bots/System-status-pinger/.venv/bin/python3 /home/aslaa/bots/System-status-pinger/pinger.py
+EnvironmentFile=/home/aslaa/bots/System-status-pinger/.env
 StandardOutput=append:/var/log/pinger.log
 StandardError=append:/var/log/pinger.log
