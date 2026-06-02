@@ -41,3 +41,27 @@ def test_setup_logging_returns_logger():
     logger = setup_logging(log_path=tmp)
     assert isinstance(logger, logging.Logger)
     assert logger.name == "pinger"
+
+
+def test_check_connectivity_success():
+    with patch("pinger.socket.create_connection", return_value=None):
+        from pinger import check_connectivity
+        assert check_connectivity(retries=3, wait=0) is True
+
+
+def test_check_connectivity_fails_then_succeeds():
+    call_count = {"n": 0}
+    def side_effect(*args, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] < 3:
+            raise OSError("timeout")
+        return None
+    with patch("pinger.socket.create_connection", side_effect=side_effect):
+        from pinger import check_connectivity
+        assert check_connectivity(retries=3, wait=0) is True
+
+
+def test_check_connectivity_all_fail():
+    with patch("pinger.socket.create_connection", side_effect=OSError("timeout")):
+        from pinger import check_connectivity
+        assert check_connectivity(retries=3, wait=0) is False

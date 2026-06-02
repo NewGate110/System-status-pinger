@@ -32,3 +32,14 @@ def setup_logging(log_path: str = "/var/log/pinger.log") -> logging.Logger:
         handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         logger.addHandler(handler)
     return logger
+
+
+def check_connectivity(retries: int = 3, wait: int = 30) -> bool:
+    for attempt in range(1, retries + 1):
+        try:
+            socket.create_connection(("8.8.8.8", 53), timeout=5)
+            return True
+        except OSError:
+            if attempt < retries:
+                time.sleep(wait)
+    return False
