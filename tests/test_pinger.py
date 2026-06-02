@@ -92,3 +92,50 @@ def test_get_emoji_boundary_crit():
     from pinger import get_emoji
     assert get_emoji(90, warn=70, crit=90) == "⚠️"
     assert get_emoji(91, warn=70, crit=90) == "🔴"
+
+
+def test_collect_metrics_structure():
+    from unittest.mock import MagicMock, patch
+
+    mock_cpu = 45.0
+    mock_ram = MagicMock(used=3 * 1024**3, total=8 * 1024**3, percent=37.5)
+    mock_partition = MagicMock(mountpoint="/", fstype="ext4", opts="rw")
+    mock_disk_usage = MagicMock(used=40 * 1024**3, total=120 * 1024**3, percent=33.0)
+    mock_net = {"eth0": MagicMock(bytes_sent=1024**3, bytes_recv=4 * 1024**3)}
+    mock_proc = MagicMock()
+    mock_proc.info = {"name": "nginx", "cpu_percent": 12.0, "memory_percent": 2.0}
+    mock_temps = {"coretemp": [MagicMock(current=48.0, label="Core 0")]}
+    mock_boot_time = 1000.0
+
+    with patch("pinger.psutil.cpu_percent", return_value=mock_cpu), \
+         patch("pinger.psutil.virtual_memory", return_value=mock_ram), \
+         patch("pinger.psutil.disk_partitions", return_value=[mock_partition]), \
+         patch("pinger.psutil.disk_usage", return_value=mock_disk_usage), \
+         patch("pinger.psutil.net_io_counters", return_value=mock_net), \
+         patch("pinger.psutil.pids", return_value=list(range(150))), \
+         patch("pinger.psutil.process_iter", return_value=[mock_proc]), \
+         patch("pinger.psutil.sensors_temperatures", return_value=mock_temps, create=True), \
+         patch("pinger.psutil.boot_time", return_value=mock_boot_time), \
+         patch("pinger.psutil.getloadavg", return_value=(1.2, 0.9, 0.8), create=True), \
+         patch("pinger.psutil.cpu_count", return_value=4), \
+         patch("pinger.subprocess.run") as mock_run:
+
+        mock_run.return_value = MagicMock(
+            stdout="root\n2026-06-02 07:45\npts/0\n192.168.1.10\n",
+            returncode=0
+        )
+
+        from pinger import collect_metrics
+        metrics = collect_metrics()
+
+    assert "cpu_percent" in metrics
+    assert "ram" in metrics
+    assert "disks" in metrics
+    assert "uptime" in metrics
+    assert "load_avg" in metrics
+    assert "network" in metrics
+    assert "process_count" in metrics
+    assert "top_processes" in metrics
+    assert "temperatures" in metrics
+    assert "failed_services" in metrics
+    assert "last_login" in metrics
