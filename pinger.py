@@ -43,3 +43,11 @@ def check_connectivity(retries: int = 3, wait: int = 30) -> bool:
             if attempt < retries:
                 time.sleep(wait)
     return False
+
+
+def get_emoji(value: float, warn: float, crit: float) -> str:
+    if value > crit:
+        return "🔴"
+    if value > warn:
+        return "⚠️"
+    return "✅"

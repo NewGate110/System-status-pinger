@@ -65,3 +65,30 @@ def test_check_connectivity_all_fail():
     with patch("pinger.socket.create_connection", side_effect=OSError("timeout")):
         from pinger import check_connectivity
         assert check_connectivity(retries=3, wait=0) is False
+
+
+def test_get_emoji_healthy():
+    from pinger import get_emoji
+    assert get_emoji(50, warn=70, crit=90) == "✅"
+
+
+def test_get_emoji_warning():
+    from pinger import get_emoji
+    assert get_emoji(75, warn=70, crit=90) == "⚠️"
+
+
+def test_get_emoji_critical():
+    from pinger import get_emoji
+    assert get_emoji(95, warn=70, crit=90) == "🔴"
+
+
+def test_get_emoji_boundary_warn():
+    from pinger import get_emoji
+    assert get_emoji(70, warn=70, crit=90) == "✅"
+    assert get_emoji(71, warn=70, crit=90) == "⚠️"
+
+
+def test_get_emoji_boundary_crit():
+    from pinger import get_emoji
+    assert get_emoji(90, warn=70, crit=90) == "⚠️"
+    assert get_emoji(91, warn=70, crit=90) == "🔴"
