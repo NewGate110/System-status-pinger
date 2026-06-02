@@ -73,7 +73,7 @@ def collect_metrics() -> dict:
             continue
 
     boot_time = psutil.boot_time()
-    uptime_delta = datetime.utcnow() - datetime.utcfromtimestamp(boot_time)
+    uptime_delta = datetime.now(timezone.utc) - datetime.fromtimestamp(boot_time, timezone.utc)
 
     load_1, load_5, load_15 = psutil.getloadavg()
 
