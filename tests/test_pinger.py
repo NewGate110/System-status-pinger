@@ -35,7 +35,8 @@ def test_load_config_missing_chat_id():
 
 
 def test_setup_logging_returns_logger():
-    tmp = tempfile.mktemp(suffix=".log")
+    fd, tmp = tempfile.mkstemp(suffix=".log")
+    os.close(fd)
     from pinger import setup_logging
     logger = setup_logging(log_path=tmp)
     assert isinstance(logger, logging.Logger)
