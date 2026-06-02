@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-import shutil
 import socket
 import time
 import subprocess
@@ -28,7 +27,8 @@ def load_config() -> dict:
     except ValueError:
         print("ERROR: REPORT_HOURS must be comma-separated integers e.g. 8,20", file=sys.stderr)
         sys.exit(1)
-    return {"token": token, "chat_id": chat_id, "report_hours": report_hours}
+    server_name = os.environ.get("SERVER_NAME", "System Status Report")
+    return {"token": token, "chat_id": chat_id, "report_hours": report_hours, "server_name": server_name}
 
 
 def setup_logging(log_path: str = "/var/log/pinger.log") -> logging.Logger:
@@ -115,14 +115,11 @@ def collect_metrics() -> dict:
     except FileNotFoundError:
         failed_services = []
 
-    last_bin = shutil.which("last")
-    if last_bin:
-        try:
-            last_result = subprocess.run([last_bin, "-n", "1", "-w"], capture_output=True, text=True)
-            last_login = last_result.stdout.strip().splitlines()[0] if last_result.stdout.strip() else "N/A"
-        except OSError:
-            last_login = "N/A"
-    else:
+    try:
+        last_result = subprocess.run("last -n 1 -w 2>/dev/null", shell=True, capture_output=True, text=True)
+        lines = [l for l in last_result.stdout.strip().splitlines() if l.strip() and "wtmp" not in l]
+        last_login = lines[0] if lines else "N/A"
+    except OSError:
         last_login = "N/A"
 
     return {
@@ -151,7 +148,7 @@ def _fmt_bytes(n: int) -> str:
     return f"{gb:.1f} GB"
 
 
-def format_message(metrics: dict) -> str:
+def format_message(metrics: dict, server_name: str = "System Status Report") -> str:
     cpu = metrics["cpu_percent"]
     cpu_emoji = get_emoji(cpu, warn=70, crit=90)
     load_1, load_5, load_15 = metrics["load_avg"]
@@ -162,7 +159,7 @@ def format_message(metrics: dict) -> str:
     ram_emoji = get_emoji(ram["percent"], warn=75, crit=90)
 
     lines = [
-        f"🖥️ *System Status Report*",
+        f"🖥️ *{server_name}*",
         f"🕐 {metrics['timestamp']} | ⏱️ Uptime: {metrics['uptime']}",
         "",
         f"*📊 CPU*",
@@ -246,7 +243,7 @@ def main() -> None:
         sys.exit(1)
 
     metrics = collect_metrics()
-    message = format_message(metrics)
+    message = format_message(metrics, server_name=config["server_name"])
 
     if not send_telegram(config["token"], config["chat_id"], message):
         logger.error("Failed to send Telegram message after 3 retries")
