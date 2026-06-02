@@ -116,9 +116,11 @@ def collect_metrics() -> dict:
         failed_services = []
 
     try:
-        last_result = subprocess.run("last -n 1 -w 2>/dev/null", shell=True, capture_output=True, text=True)
-        lines = [l for l in last_result.stdout.strip().splitlines() if l.strip() and "wtmp" not in l]
-        last_login = lines[0] if lines else "N/A"
+        last_result = subprocess.run(
+            ["who", "/var/log/wtmp"], capture_output=True, text=True
+        )
+        lines = [l.strip() for l in last_result.stdout.strip().splitlines() if l.strip()]
+        last_login = lines[-1] if lines else "N/A"
     except OSError:
         last_login = "N/A"
 
